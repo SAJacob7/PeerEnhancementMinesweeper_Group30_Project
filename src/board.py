@@ -284,7 +284,7 @@ class Board:
         if not uncovered_cells:
             return "NO_MOVES"
 
-        cell_index = random.randint(0, len(uncovered_cells)) # Randomly selects a cell to uncover
+        cell_index = random.randint(0, len(uncovered_cells) -1) # Randomly selects a cell to uncover
         selected_r = uncovered_cells[cell_index][0]
         selected_c = uncovered_cells[cell_index][1]
 
