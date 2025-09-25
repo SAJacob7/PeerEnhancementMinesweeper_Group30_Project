@@ -290,10 +290,10 @@ class Board:
     parameters: N/A
     """
     def hard_ai_mode(self):
-        for r in range(self.length):
-            for c in range(self.width):
-                if not self.is_mine(r,c) and self.is_covered(r,c) == True:
-                    return r, c, self.uncover(r,c,False)
+        for r in range(self.length): # Iterates through the rows
+            for c in range(self.width): # Iterates through the columns
+                if not self.is_mine(r,c) and self.is_covered(r,c) == True: # checks if the cell is a not a mine and is convered
+                    return r, c, self.uncover(r,c,False) # retruns the row and column of the cell, and uncoveres the selected cell
                 
     
     """
