@@ -275,12 +275,17 @@ class Board:
                     # Iterates through all cells and adds the ones that are covered and not flagged
                     uncovered_cells.append((r, c))
 
-        cell_index = random.randint(0, len(uncovered_cells)) # Randomly selects a cell to uncover
+        cell_index = random.randint(0, len(uncovered_cells)-1) # Randomly selects a cell to uncover
         selected_r = uncovered_cells[cell_index][0]
         selected_c = uncovered_cells[cell_index][1]
         
         # Returns the selected row and col and the status after uncovering
-        return selected_r, selected_c, self.uncover(selected_r, selected_c, False) # Calls uncover function to uncover selected cell    
+        result = self.uncover(selected_r, selected_c, False)
+        if (result == "SAFE"):
+            ui.print_ai_move(selected_r, selected_c, "REVEALED")
+        else:
+            ui.print_ai_move(selected_r, selected_c, result)
+        return result # Calls uncover function to uncover selected cell    
     
     """
     Functionality: 
@@ -312,60 +317,160 @@ class Board:
     """
     def medium_ai_mode(self, use_random = True): # use_random for hard ai mode
         num_cells = [] # Stores uncovered numbered cells 
-        not_random = False # is_random used internally 
-        result = None
-        cells_no_action = 0 # Check if rule 2 does not apply
-        last_flagged_r = None # Store last flagged row
-        last_flagged_c = None # Store last flaggged column
+        not_random = False # Used to determine if both rule 1 and rule 2 didn't work, which means easy_ai should be called to perform random click.
         
         for r in range(self.length):  # Iterate through rows 
             for c in range(self.width): # Iterate through columns
                 if self.state[r][c] == "UNCOVERED" and self.adj[r][c] > 0: # Add cells that are revealed and not 0 to num_cells
                     num_cells.append((r, c)) 
 
-        # Rule 1: if the number of hidden neighbors of a revealed cell equals that cell’s number, the AI should flag all hidden neighbors
+        # Rule 1: If the number of hidden neighbors of a revealed cell equals that cell’s number, the AI should flag all hidden neighbors.
         for r, c in num_cells: 
-            covered_cells = self.get_covered_neighbors(r, c)
-            flagged_cells = self.get_flagged_neighbors(r, c)
+            covered_cells = self.get_covered_neighbors(r, c) # Stores all the covered neighbors of a cell
+            flagged_cells = self.get_flagged_neighbors(r, c) # Stores all the flagged neighbors of a cell
+            # Rule 1 applies if the cell's number is equaled to the sum of covered neighbors and flagged neighbors.
             if len(covered_cells) + len(flagged_cells) == self.adj[r][c]:
+                # Iterate through the covered_cells to flag them
                 for rr, cc in covered_cells:
                     self.toggle_flag(rr, cc) 
-                    ui.print_ai_move(rr, cc, "FLAGGED")
-                    last_flagged_r = rr
-                    last_flagged_c = cc
-                    not_random = True
+                    ui.print_ai_move(rr, cc, "FLAGGED") # Print the move
+                    not_random = True # Since Rule 1 applies, a random click will not be performed
         
-        # Rule 2: if the number of flagged neighbors of a revealed cell equals that cell’s number, the AI should open all other hidden neighbors
+        # Rule 2: If the number of flagged neighbors of a revealed cell equals that cell’s number, the AI should open all other hidden neighbors.
         for r, c in num_cells: 
-            n = len(self.get_flagged_neighbors(r, c))
-            if n == self.adj[r][c]: # Check if they are equal
-                covered_cells = self.get_covered_neighbors(r, c)
+            n = len(self.get_flagged_neighbors(r, c)) # Number of flagged neighbors
+            if n == self.adj[r][c]: # Check if the cell's number and the flagged neighbors are the same
+                covered_cells = self.get_covered_neighbors(r, c) # Stores all the covered neighbor
                 if len(covered_cells) > 0: 
-                    for i in range(0, len(covered_cells)):
+                    # If there are covered neighbors, then uncover them.
+                    for rr, cc in covered_cells:
                         not_random = True
-                        result = self.uncover(covered_cells[i][0], covered_cells[i][1], False)
-                        if (result == "SAFE" or result == "REVEALED") and i != len(covered_cells)-1: 
-                            ui.print_ai_move(covered_cells[i][0], covered_cells[i][1], "REVEALED")
+                        result = self.uncover(rr, cc, False) # Stores the result after uncovering
+                        if (result == "SAFE" or result == "REVEALED"): 
+                            # Print revealed move if the result is SAFE or REVEALED and its not the last move for the cell.
+                            ui.print_ai_move(rr, cc, "REVEALED")
                             continue
-                        elif result == "HIT" or i == len(covered_cells)-1 or self.check_win(): 
-                            return covered_cells[i][0], covered_cells[i][1], result
-                else: 
-                    cells_no_action += 1
+                        elif result == "HIT" or self.check_win():
+                            ui.print_ai_move(rr, cc, result)
+                            return result
                    
         if not_random == False: 
+            # If Rule 1 and 2 did not apply, then call easy_ai_mode() to perform a random click.
             return self.easy_ai_mode()
-        elif cells_no_action == len(num_cells):
-            return last_flagged_r, last_flagged_c, "FLAGGED"
+        elif use_random == False:
+            return 0, 0, "False"
     
     """
     Functionality: The AI always selects a covered safe-cell (not flagged and not mined) and uncovers it for the user.
     Parameters: N/A
     """
     def hard_ai_mode(self):
+        no_medium_moves = False
+        is_hard_move = False
+
+        medium_ai_moves = self.medium_ai_mode(use_random = False)
+        if medium_ai_moves[2] == "False":
+            no_medium_moves = True # This means medium AI made no moves
+
+        # Vertical 1-2-1
+        for r in range(self.length - 2):
+            for c in range(self.width):
+                if (self.is_uncovered(r,c) and self.adj[r][c] == 1
+                    and self.is_uncovered(r+1,c) and self.adj[r+1][c] == 2
+                    and self.is_uncovered(r+2,c) and self.adj[r+2][c] == 1):
+                    corners_first_col = []
+                    veritcal_corners = []
+                    vertical_reveal_safe = []
+                    reveal_safe_first_col = []
+                    # Need to check if it's the first column
+                    if c == 0: # First column
+                        # We just need to check the top right corner and the bottom right corner.
+                        corners_first_col.append((r, c+1)) # Top right corner
+                        corners_first_col.append((r+2, c-1)) # Bottom right corner
+                        reveal_safe_first_col.append((r+1, c+1)) # Middle right
+                    else:
+                        veritcal_corners.append((r,c-1)) # Top left corner
+                        veritcal_corners.append((r, c+1)) # Top right corner
+                        veritcal_corners.append((r+2, c+1)) # Bottom right corner
+                        veritcal_corners.append((r+2, c-1)) # Bottom right corner
+                        vertical_reveal_safe.append((r+1, c+1)) # Middle right
+                        vertical_reveal_safe.append((r+1, c-1)) # Middle left
+                    if (len(corners_first_col) == 0): # We are not on the first column, so use corners list.
+                        for i in veritcal_corners:
+                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False: # This means it is a mine.
+                                self.toggle_flag(i[0], i[1]) 
+                                ui.print_ai_move(i[0], i[1], "FLAGGED")
+                        # Uncover the safe neighbor
+                        for i in vertical_reveal_safe:
+                            if self.is_covered(i[0], i[1]) == True: # This means it is safe to reveal.
+                                    # Reveal
+                                    self.uncover(i[0], i[1], False)
+                                    ui.print_ai_move(i[0], i[1], "REVEALED")
+                    else:
+                        for i in corners_first_col:
+                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False: # This means it is a mine.
+                                self.toggle_flag(i[0], i[1]) 
+                                ui.print_ai_move(i[0], i[1], "FLAGGED")
+                        # Uncover the safe neighbor
+                        for i in reveal_safe_first_col:
+                            if self.is_covered(i[0], i[1]) == True: # This means it is safe to reveal.
+                                    # Reveal
+                                    self.uncover(i[0], i[1], False)
+                                    ui.print_ai_move(i[0], i[1], "REVEALED")
+                    is_hard_move = True
+
+        # Horizontal 1-2-1          
         for r in range(self.length): # Iterates through the rows
-            for c in range(self.width): # Iterates through the columns
-                if not self.is_mine(r,c) and self.is_covered(r,c) == True: # checks if the cell is a not a mine and is convered
-                    return r, c, self.uncover(r,c,False) # retruns the row and column of the cell, and uncoveres the selected cell
+            for c in range(self.width - 2): # Iterates through the columns
+                if (self.is_uncovered(r,c) and self.adj[r][c] == 1
+                    and self.is_uncovered(r,c+1) and self.adj[r][c+1] == 2
+                    and self.is_uncovered(r,c+2) and self.adj[r][c+2] == 1):
+                    corners_first_row = []
+                    horizontal_corners = []
+                    horizontal_reveal_safe = []
+                    reveal_safe_first_row = []
+                    if r == 0:
+                        corners_first_row.append((r+1, c)) # Bottom Left Corner
+                        corners_first_row.append((r+1, c+2)) # Bottom Right Corner
+                        reveal_safe_first_row.append((r+1, c+1)) # Middle Bottom
+                    else:
+                        horizontal_corners.append((r+1, c)) # Bottom Left Corner
+                        horizontal_corners.append((r-1, c)) # Top Left Corner 
+                        horizontal_corners.append((r+1, c+2)) # Bottom Right Corner
+                        horizontal_corners.append((r-1, c+2)) # Top Right Corner
+                        horizontal_reveal_safe.append((r+1, c+1)) # Middle Bottom
+                        horizontal_reveal_safe.append((r-1, c+1)) # Middle Top
+                    
+                    if (len(corners_first_row) == 0):
+                        for i in horizontal_corners:
+                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False:
+                                self.toggle_flag(i[0], i[1])
+                                ui.print_ai_move(i[0], i[1], "FLAGGED")
+                        for i in horizontal_reveal_safe:
+                            if self.is_covered(i[0], i[1]) == True: # This means it is safe to reveal.
+                                # Reveal
+                                self.uncover(i[0], i[1], False)
+                                ui.print_ai_move(i[0], i[1], "REVEALED")
+                    else:
+                        for i in corners_first_row :
+                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False: # This means it is a mine.
+                                self.toggle_flag(i[0], i[1]) 
+                                ui.print_ai_move(i[0], i[1], "FLAGGED")
+                        # Uncover the safe neighbor
+                        for i in reveal_safe_first_row:
+                            if self.is_covered(i[0], i[1]) == True: # This means it is safe to reveal.
+                                # Reveal
+                                self.uncover(i[0], i[1], False)
+                                ui.print_ai_move(i[0], i[1], "REVEALED")
+
+                    is_hard_move = True
+                    
+        if is_hard_move == False and no_medium_moves == True:
+                # Do the random selection of a cell since we did not make any moves in hard and medium.
+                return self.easy_ai_mode()
+        
+        return "REVEALED"
+             
     
     """
     Functionality: This will iterate through the board and find the first cell that is covered and a 0 safe cell.
