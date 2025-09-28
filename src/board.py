@@ -288,20 +288,22 @@ class Board:
         return result # Calls uncover function to uncover selected cell    
     
     """
-    Functionality: 
-    Parameters: N/A
+    Functionality: Helper function to medium_ai_mode(). This gets all the neighbors around a cell that is covered.
+    Parameters: The row and column of the covered neighbors we want to find are parameters.
+    Returns: List of covered neighbors.
     """
     def get_covered_neighbors(self, r, c):
         covered_neighbors = []
-        neighbors = self.neighbors(r, c)
+        neighbors = self.neighbors(r, c) # Get all the neighbors
         for rr, cc in neighbors: # Determine which neighbors are covered
             if self.is_covered(rr, cc):
-                covered_neighbors.append((rr, cc))
+                covered_neighbors.append((rr, cc)) # Only append those that are covered
         return covered_neighbors
     
     """
-    Functionality: 
-    Parameters: N/A
+    Functionality: Helper function to medium_ai_mode(). This gets all the neighbors around a cell that is flagged.
+    Parameters: The row and column of the flagged neighbors we want to find are parameters.
+    Returns: List of flagged neigbbors.
     """
     def get_flagged_neighbors(self, r, c):
         flagged_neighbors = []
@@ -313,12 +315,13 @@ class Board:
     
     """
     Functionality: AI uncovers randomly until a safe cell is revealed (zero adjacent mines), then uncovers adjacent cells strategically using revealed numbers.
-    Parameters: N/A
+    Parameters:
+        use_random: We do not want to use the random reveal if hard_ai_mode calls this function.
+    Returns: Prints the moves that the medium AI will strategically make.
     """
-    def medium_ai_mode(self, use_random = True): # use_random for hard ai mode
+    def medium_ai_mode(self, use_random = True):
         num_cells = [] # Stores uncovered numbered cells 
-        not_random = False # Used to determine if both rule 1 and rule 2 didn't work, which means easy_ai should be called to perform random click.
-        
+        used_rule = [False, False] # Check which rule was used and not used. Used to determine if both rule 1 and rule 2 didn't work, which means easy_ai should be called to perform random click.
         for r in range(self.length):  # Iterate through rows 
             for c in range(self.width): # Iterate through columns
                 if self.state[r][c] == "UNCOVERED" and self.adj[r][c] > 0: # Add cells that are revealed and not 0 to num_cells
@@ -334,7 +337,7 @@ class Board:
                 for rr, cc in covered_cells:
                     self.toggle_flag(rr, cc) 
                     ui.print_ai_move(rr, cc, "FLAGGED") # Print the move
-                    not_random = True # Since Rule 1 applies, a random click will not be performed
+                    used_rule[0] = True # Since Rule 1 applies, a random click will not be performed
         
         # Rule 2: If the number of flagged neighbors of a revealed cell equals that cell’s number, the AI should open all other hidden neighbors.
         for r, c in num_cells: 
@@ -344,24 +347,33 @@ class Board:
                 if len(covered_cells) > 0: 
                     # If there are covered neighbors, then uncover them.
                     for rr, cc in covered_cells:
-                        not_random = True
+                        used_rule[1] = True # We have gone through Rule 2 and are going to do a move now, so no need for random reveal.
                         result = self.uncover(rr, cc, False) # Stores the result after uncovering
-                        if (result == "SAFE" or result == "REVEALED"): 
-                            # Print revealed move if the result is SAFE or REVEALED and its not the last move for the cell.
+                        if (result == "SAFE"): 
+                            # Print revealed the cell if the result is SAFE.
                             ui.print_ai_move(rr, cc, "REVEALED")
                             continue
-                        elif result == "HIT" or self.check_win():
+                        elif (result == "REVEALED"): # This means that the cell has already been revealed, so we didn't make that move. Don't print anything.
+                            continue
+                        elif result == "HIT" or self.check_win(): # If the AI made a winning or losing move, return as such.
                             ui.print_ai_move(rr, cc, result)
                             return result
                    
-        if not_random == False: 
-            # If Rule 1 and 2 did not apply, then call easy_ai_mode() to perform a random click.
+        if True not in used_rule and use_random == True: # If both rules are still False (didn't apply), then call easy_ai_mode() for random click.
             return self.easy_ai_mode()
-        elif use_random == False:
-            return 0, 0, "False"
+        # use_random = False means hard_ai_mode called this function.
+        # If Rule 1 and 2 didn't apply, and it's hard mode, then tell hard to perform random click if necessary.
+        elif use_random == False and True not in used_rule:
+            return "No_Medium_Moves"
+        elif used_rule[0] == True and used_rule[1] == False:
+            return "Rule_1"
+        elif used_rule[0] == False and used_rule[1] == True:
+            return "Rule_2"
+        elif used_rule[0] == True and used_rule[1] == True:
+            return "Both"
     
     """
-    Functionality: The AI always selects a covered safe-cell (not flagged and not mined) and uncovers it for the user.
+    Functionality: After making moves with medium mode, the AI uses the 1-2-1 rule to flag the two guaranteed mines and uncovers the safe neighbor.
     Parameters: N/A
     """
     def hard_ai_mode(self):
@@ -369,8 +381,8 @@ class Board:
         is_hard_move = False
 
         medium_ai_moves = self.medium_ai_mode(use_random = False)
-        if medium_ai_moves[2] == "False":
-            no_medium_moves = True # This means medium AI made no moves
+        if medium_ai_moves == "No_Medium_Moves":
+            no_medium_moves = True # This means medium AI made no moves.
 
         # Vertical 1-2-1
         for r in range(self.length - 2):
@@ -397,15 +409,14 @@ class Board:
                         vertical_reveal_safe.append((r+1, c-1)) # Middle left
                     if (len(corners_first_col) == 0): # We are not on the first column, so use corners list.
                         for i in veritcal_corners:
-                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False: # This means it is a mine.
+                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False: # This means it is a mine, flag it.
                                 self.toggle_flag(i[0], i[1]) 
                                 ui.print_ai_move(i[0], i[1], "FLAGGED")
                         # Uncover the safe neighbor
                         for i in vertical_reveal_safe:
                             if self.is_covered(i[0], i[1]) == True: # This means it is safe to reveal.
-                                    # Reveal
                                     self.uncover(i[0], i[1], False)
-                                    ui.print_ai_move(i[0], i[1], "REVEALED")
+                                    ui.print_ai_move(i[0], i[1], "REVEALED") # Print revealed.
                     else:
                         for i in corners_first_col:
                             if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False: # This means it is a mine.
@@ -414,10 +425,9 @@ class Board:
                         # Uncover the safe neighbor
                         for i in reveal_safe_first_col:
                             if self.is_covered(i[0], i[1]) == True: # This means it is safe to reveal.
-                                    # Reveal
                                     self.uncover(i[0], i[1], False)
-                                    ui.print_ai_move(i[0], i[1], "REVEALED")
-                    is_hard_move = True
+                                    ui.print_ai_move(i[0], i[1], "REVEALED") # Print revealed.
+                    is_hard_move = True # A hard move has been made.
 
         # Horizontal 1-2-1          
         for r in range(self.length): # Iterates through the rows
@@ -443,29 +453,27 @@ class Board:
                     
                     if (len(corners_first_row) == 0):
                         for i in horizontal_corners:
-                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False:
+                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False: # This means it is a mine, flag it.
                                 self.toggle_flag(i[0], i[1])
                                 ui.print_ai_move(i[0], i[1], "FLAGGED")
                         for i in horizontal_reveal_safe:
                             if self.is_covered(i[0], i[1]) == True: # This means it is safe to reveal.
-                                # Reveal
                                 self.uncover(i[0], i[1], False)
-                                ui.print_ai_move(i[0], i[1], "REVEALED")
+                                ui.print_ai_move(i[0], i[1], "REVEALED") # Print revealed.
                     else:
                         for i in corners_first_row :
-                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False: # This means it is a mine.
+                            if self.is_covered(i[0], i[1]) == True and self.is_flag(i[0], i[1]) == False: # This means it is a mine, flag it.
                                 self.toggle_flag(i[0], i[1]) 
                                 ui.print_ai_move(i[0], i[1], "FLAGGED")
                         # Uncover the safe neighbor
                         for i in reveal_safe_first_row:
                             if self.is_covered(i[0], i[1]) == True: # This means it is safe to reveal.
-                                # Reveal
                                 self.uncover(i[0], i[1], False)
-                                ui.print_ai_move(i[0], i[1], "REVEALED")
+                                ui.print_ai_move(i[0], i[1], "REVEALED") # Print revealed.
 
-                    is_hard_move = True
+                    is_hard_move = True # A hard move has been made.
                     
-        if is_hard_move == False and no_medium_moves == True:
+        if is_hard_move == False and no_medium_moves == True: # No medium and no hard moves made.
                 # Do the random selection of a cell since we did not make any moves in hard and medium.
                 return self.easy_ai_mode()
         
