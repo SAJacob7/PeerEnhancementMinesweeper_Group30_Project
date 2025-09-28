@@ -1,3 +1,11 @@
+"""
+    Program Name: ui.py
+    Purpose: To create a fully functioning game board and the interactive UI.
+    Inputs: Bomb amount that the user wants and clicks/actions for the cells, AI option and mode
+    Outputs: An updating game board based on the user's actions to uncover and reveal cells and play the game.
+    Collaborators: N/A
+    Sources: N/A
+"""
 # UI file
 import time
 from board import Board

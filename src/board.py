@@ -1,3 +1,11 @@
+"""
+    Program Name: board.py
+    Purpose: Functions that reveal cells, place bombs, etc. Includes all the logic for easy, medium, and hard AI mode.
+    Inputs: N/A
+    Outputs: N/A
+    Collaborators: N/A
+    Sources: N/A
+"""
 import random
 from collections import deque
 import ui
