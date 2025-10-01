@@ -14,8 +14,8 @@ class UI:
         self.board = None # Stores a reference to the Board object so board.py can be reached.
         self.hint = 2 # The amount of hints left for the user in the game.
         self.difficulty = None # Stores the difficulty status for the AI (None, "EASY", "MEDIUM", "HARD")
-        self.start_time = 0
-        self.end_time = 0
+        self.start_time = 0 # Stores the game start time
+        self.end_time = 0 # Stores teh game end time
 
     def start_screen(self):
         # Functionality: Displays the welcome screen, prompts for valid mine count, then creates the Game and Board and starts rendering.
@@ -159,6 +159,7 @@ class UI:
                 print("\n-- AI's Turn --")
                 ai_result = self.make_ai_move()
                 if ai_result == "HIT":
+                    # If the AI uncovers a bomb, then the game is over.
                     self.board.playing_state = "LOST"
                     print("💣 AI hit a mine!")
                 
@@ -242,7 +243,7 @@ class UI:
                 return action, row, col
     
     """
-    Based on the difficulty, call the appropriate AI function from board.py
+    Based on the difficulty, call the appropriate AI function from board.py.
     """
     def make_ai_move(self):
         d = (self.difficulty).lower()
@@ -251,6 +252,10 @@ class UI:
         elif d == "medium":
             return self.board.medium_ai_mode()
         return self.board.hard_ai_mode()
-    
+
+"""
+Functionality: Helper function to print the AI's move.
+Parameters: The row and column of the move and the result after uncovering that cell.
+""" 
 def print_ai_move(r, c, result):
     print(f"AI's Move: {result} {chr(c + 65)}{r + 1}")
