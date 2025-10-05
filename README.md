@@ -16,6 +16,15 @@ How does Minesweeper work? In this game, you can select how many bombs you want 
 - Kusuma Murthy
 - Nikka Vuong
 - Nimra Syed
+<br>
+
+This project is a continuation/built off an existing repo made by:
+- Sabeen Ahmad
+- Anna Ross
+- Sriya Annem
+- Kaden Huber
+- Samantha Adorno
+- Tanu Sakary
 
 **Note:** Please visit our Wiki Page at the top to see our Meeting Logs.
 
